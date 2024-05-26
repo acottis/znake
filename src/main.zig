@@ -36,18 +36,28 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
         snake_len: usize = 1,
         direction: Direction = Direction.Up,
         pending_direction: Direction = Direction.Up,
+        rand: std.Random,
 
         fn init() @This() {
+            var rand_gen = std.Random.DefaultPrng.init(0x13371337);
+
             var self = @This(){
-                .grid = [_][C]Square{[_]Square{Square.init()} ** C} ** R,
-                .snake = [_]Point{Point.new(0, 0)} ** (R * C),
+                .grid = comptime [_][C]Square{[_]Square{Square.init()} ** C} ** R,
+                .snake = comptime [_]Point{Point.new(0, 0)} ** (R * C),
+                .rand = rand_gen.random(),
             };
 
-            self.snake[0] = Point.new(R / 2, C / 2);
-            self.grid[2][5] = Square{ .colour = rl.RED, .apple = true };
-            self.grid[4][5] = Square{ .colour = rl.RED, .apple = true };
+            self.snake[0] = comptime Point.new(R / 2, C / 2);
+            self.spawn_apple();
+            self.spawn_apple();
 
             return self;
+        }
+
+        fn spawn_apple(self: *@This()) void {
+            const row = self.rand.intRangeLessThan(u16, 0, R);
+            const col = self.rand.intRangeLessThan(u16, 0, C);
+            self.grid[row][col] = Square{ .colour = rl.RED, .apple = true };
         }
 
         fn move_tail(self: *@This(), current_head: Point) void {
@@ -95,7 +105,6 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
             }
 
             self.move_tail(current_head);
-            std.debug.print("{any}\n", .{self.snake[0..self.snake_len]});
         }
 
         fn handle_input(self: *@This()) void {
@@ -161,8 +170,6 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
 }
 
 pub fn main() !void {
-    std.debug.print("{}\n", .{rl});
-
     const WINDOW_WIDTH = 800;
     const WINDOW_HEIGHT = 600;
     const FPS = 144;
@@ -187,13 +194,17 @@ pub fn main() !void {
         game.render();
         game.handle_input();
 
-        if (frame == FPS / 3) {
+        if (@mod(frame, FPS * 3) == 0) {
+            game.spawn_apple();
+        }
+
+        if (@mod(frame, FPS / 6) == 0) {
             game.step();
-            frame = 0;
         }
 
         rl.BeginDrawing();
         rl.EndDrawing();
-        frame += 1;
+
+        frame = (frame + 1) % std.math.maxInt(usize);
     }
 }
