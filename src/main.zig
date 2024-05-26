@@ -34,13 +34,13 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
         grid: [R][C]Square,
         snake: [R * C]Point,
         snake_len: usize = 1,
-        direction: Direction,
+        direction: Direction = Direction.Up,
+        pending_direction: Direction = Direction.Up,
 
         fn init() @This() {
             var self = @This(){
                 .grid = [_][C]Square{[_]Square{Square.init()} ** C} ** R,
                 .snake = [_]Point{Point.new(0, 0)} ** (R * C),
-                .direction = Direction.Up,
             };
 
             self.snake[0] = Point.new(R / 2, C / 2);
@@ -57,18 +57,6 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
                 i -= 1;
             }
             self.snake[1] = current_head;
-
-            //            var i = self.snake_len - 1;
-            //            while (i > 0) {
-            //                self.snake[i] = self.snake[i - 1];
-            //                i -= 1;
-            //            }
-
-            //            var tmp = prev_sqr;
-            //            for (1..self.snake_len) |i| {
-            //                self.snake[i] = tmp;
-            //                tmp = self.snake[i];
-            //            }
         }
 
         fn grow_snake(self: *@This()) void {
@@ -83,7 +71,7 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
         fn step(self: *@This()) void {
             const current_head = self.snake[0];
             var head = &self.snake[0];
-            switch (self.direction) {
+            switch (self.pending_direction) {
                 Direction.Up => {
                     head.y = @mod(head.y - 1, C);
                 },
@@ -97,24 +85,41 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
                     head.x = @mod(head.x + 1, R);
                 },
             }
+            self.direction = self.pending_direction;
 
             const next_sqr = &self.grid[@intCast(head.x)][@intCast(head.y)];
-
             if (next_sqr.apple == true) {
                 next_sqr.apple = false;
                 next_sqr.colour = rl.DARKGRAY;
                 self.grow_snake();
             }
+
             self.move_tail(current_head);
             std.debug.print("{any}\n", .{self.snake[0..self.snake_len]});
         }
 
         fn handle_input(self: *@This()) void {
             switch (rl.GetKeyPressed()) {
-                rl.KEY_W => self.direction = Direction.Up,
-                rl.KEY_S => self.direction = Direction.Down,
-                rl.KEY_A => self.direction = Direction.Left,
-                rl.KEY_D => self.direction = Direction.Right,
+                rl.KEY_W => {
+                    if (self.direction != Direction.Down) {
+                        self.pending_direction = Direction.Up;
+                    }
+                },
+                rl.KEY_S => {
+                    if (self.direction != Direction.Up) {
+                        self.pending_direction = Direction.Down;
+                    }
+                },
+                rl.KEY_A => {
+                    if (self.direction != Direction.Right) {
+                        self.pending_direction = Direction.Left;
+                    }
+                },
+                rl.KEY_D => {
+                    if (self.direction != Direction.Left) {
+                        self.pending_direction = Direction.Right;
+                    }
+                },
                 else => {},
             }
         }
@@ -158,8 +163,8 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
 pub fn main() !void {
     std.debug.print("{}\n", .{rl});
 
-    const WINDOW_WIDTH = 799;
-    const WINDOW_HEIGHT = 599;
+    const WINDOW_WIDTH = 800;
+    const WINDOW_HEIGHT = 600;
     const FPS = 144;
 
     rl.SetConfigFlags(rl.FLAG_WINDOW_RESIZABLE);
@@ -182,7 +187,7 @@ pub fn main() !void {
         game.render();
         game.handle_input();
 
-        if (frame == FPS / 2) {
+        if (frame == FPS / 3) {
             game.step();
             frame = 0;
         }
