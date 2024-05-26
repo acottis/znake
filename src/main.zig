@@ -37,6 +37,7 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
         direction: Direction = Direction.Up,
         pending_direction: Direction = Direction.Up,
         rand: std.Random,
+        over: bool = false,
 
         fn init() @This() {
             var rand_gen = std.Random.DefaultPrng.init(0x13371337);
@@ -78,6 +79,16 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
             }
         }
 
+        fn collision(self: *@This()) bool {
+            if (self.snake_len < 4) return false;
+            for (4..self.snake_len) |i| {
+                if (std.meta.eql(self.snake[i], self.snake[0])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         fn step(self: *@This()) void {
             const current_head = self.snake[0];
             var head = &self.snake[0];
@@ -105,6 +116,10 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
             }
 
             self.move_tail(current_head);
+
+            if (self.collision()) {
+                self.over = true;
+            }
         }
 
         fn handle_input(self: *@This()) void {
@@ -189,9 +204,22 @@ pub fn main() !void {
 
     var frame: usize = 0;
     while (!rl.WindowShouldClose()) {
+        rl.BeginDrawing();
         rl.ClearBackground(rl.DARKGRAY);
 
         game.render();
+        if (game.over == true) {
+            rl.DrawText(
+                "YOU DIED! Press ESC to exit",
+                @divFloor(rl.GetRenderWidth(), 4),
+                @divFloor(rl.GetRenderHeight(), 4),
+                60,
+                rl.ORANGE,
+            );
+            rl.EndDrawing();
+            continue;
+        }
+
         game.handle_input();
 
         if (@mod(frame, FPS * 3) == 0) {
@@ -202,9 +230,7 @@ pub fn main() !void {
             game.step();
         }
 
-        rl.BeginDrawing();
         rl.EndDrawing();
-
         frame = (frame + 1) % std.math.maxInt(usize);
     }
 }
