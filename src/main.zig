@@ -45,28 +45,68 @@ fn Game(comptime R: comptime_int, comptime C: comptime_int) type {
 
             self.snake[0] = Point.new(R / 2, C / 2);
             self.grid[2][5] = Square{ .colour = rl.RED, .apple = true };
+            self.grid[4][5] = Square{ .colour = rl.RED, .apple = true };
 
             return self;
         }
 
+        fn move_tail(self: *@This(), current_head: Point) void {
+            var i = self.snake_len - 1;
+            while (i > 1) {
+                self.snake[i] = self.snake[i - 1];
+                i -= 1;
+            }
+            self.snake[1] = current_head;
+
+            //            var i = self.snake_len - 1;
+            //            while (i > 0) {
+            //                self.snake[i] = self.snake[i - 1];
+            //                i -= 1;
+            //            }
+
+            //            var tmp = prev_sqr;
+            //            for (1..self.snake_len) |i| {
+            //                self.snake[i] = tmp;
+            //                tmp = self.snake[i];
+            //            }
+        }
+
+        fn grow_snake(self: *@This()) void {
+            self.snake_len += 1;
+            var i = self.snake_len - 1;
+            while (i > 0) {
+                self.snake[i] = self.snake[i - 1];
+                i -= 1;
+            }
+        }
+
         fn step(self: *@This()) void {
+            const current_head = self.snake[0];
+            var head = &self.snake[0];
             switch (self.direction) {
                 Direction.Up => {
-                    self.snake[0].y = @mod(self.snake[0].y - 1, C);
+                    head.y = @mod(head.y - 1, C);
                 },
                 Direction.Down => {
-                    self.snake[0].y = @mod(self.snake[0].y + 1, C);
+                    head.y = @mod(head.y + 1, C);
                 },
                 Direction.Left => {
-                    self.snake[0].x = @mod(self.snake[0].x - 1, R);
+                    head.x = @mod(head.x - 1, R);
                 },
                 Direction.Right => {
-                    self.snake[0].x = @mod(self.snake[0].x + 1, R);
+                    head.x = @mod(head.x + 1, R);
                 },
             }
 
-            const new_sqr = self.grid[@intCast(self.snake[0].x)][@intCast(self.snake[0].y)];
-            if (new_sqr.apple == true) {}
+            const next_sqr = &self.grid[@intCast(head.x)][@intCast(head.y)];
+
+            if (next_sqr.apple == true) {
+                next_sqr.apple = false;
+                next_sqr.colour = rl.DARKGRAY;
+                self.grow_snake();
+            }
+            self.move_tail(current_head);
+            std.debug.print("{any}\n", .{self.snake[0..self.snake_len]});
         }
 
         fn handle_input(self: *@This()) void {
